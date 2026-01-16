@@ -15,7 +15,7 @@ def get_completion(prompt):
       print("User prompt:", prompt)
       generation_config = {
         "temperature": 0.5,
-        "max_output_tokens": 10000,
+        "max_output_tokens": 8000,
         "top_p": 0.95,
         "top_k": 64
     }
