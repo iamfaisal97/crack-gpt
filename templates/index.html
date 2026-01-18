@@ -42,6 +42,7 @@
         @media (max-width: 768px) {
             header {
                 padding: 12px 16px;
+                justify-content: space-between;
             }
         }
 
@@ -55,6 +56,96 @@
         @media (max-width: 768px) {
             .logo {
                 font-size: 15px;
+            }
+        }
+
+        /* Style Selector */
+        #style-selector-wrapper {
+            position: absolute;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        @media (max-width: 768px) {
+            #style-selector-wrapper {
+                position: static;
+                gap: 6px;
+            }
+        }
+
+        #style-selector-wrapper label {
+            font-size: 13px;
+            color: #6B6B66;
+            font-weight: 400;
+        }
+
+        @media (max-width: 768px) {
+            #style-selector-wrapper label {
+                display: none;
+            }
+        }
+
+        #style-selector {
+            padding: 6px 12px;
+            border: 1px solid #E5E5E0;
+            border-radius: 8px;
+            background: #fff;
+            color: #2C2A29;
+            font-size: 14px;
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        @media (max-width: 768px) {
+            #style-selector {
+                font-size: 13px;
+                padding: 5px 10px;
+            }
+        }
+
+        #style-selector:hover {
+            border-color: #BFBFBA;
+        }
+
+        #style-selector:focus {
+            border-color: #2C2A29;
+        }
+
+        /* Style Toast Notification */
+        .style-toast {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            background: #2C2A29;
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        @media (max-width: 768px) {
+            .style-toast {
+                top: 60px;
+                right: 12px;
+                font-size: 13px;
+                padding: 10px 16px;
+            }
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
             }
         }
 
@@ -118,6 +209,10 @@
             }
         }
 
+        .message-wrapper.assistant {
+            background: transparent;
+        }
+
         .message-inner {
             width: 100%;
             max-width: 720px;
@@ -169,15 +264,15 @@
         }
 
         .message-wrapper.user .message-content {
-            background: #fff;
+            background: #E8E4DC;
             color: #2C2A29;
-            border: 1px solid #E5E5E0;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+            border: 1px solid #D4D0C8;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
 
         .message-wrapper.assistant .message-content {
             background: transparent;
-            color: #2C2A29;
+            color: #1F1F1F;
             border: none;
             box-shadow: none;
             padding-left: 0;
@@ -524,14 +619,29 @@
 </head>
 <body>
     <header>
-        <div class="logo">Claude</div>
+        <div class="logo">AI Chat</div>
+        <div id="style-selector-wrapper">
+            <label for="style-selector">Style:</label>
+            <select id="style-selector">
+                <option value="professional">Professional</option>
+                <option value="casual">Casual Friend</option>
+                <option value="concise">Concise</option>
+                <option value="creative">Creative Writer</option>
+                <option value="teacher">Patient Teacher</option>
+                <option value="technical">Technical Expert</option>
+                <option value="eli5">ELI5</option>
+                <option value="debate">Debate Partner</option>
+                <option value="enthusiastic">Enthusiastic</option>
+                <option value="philosopher">Philosopher</option>
+            </select>
+        </div>
     </header>
 
     <div id="chat-container">
         <div class="welcome">
             <div class="welcome-content">
-                <h1>How can Claude help you today?</h1>
-                <p>I'm Claude, an AI assistant. I can help with analysis, writing, math, coding, and more.</p>
+                <h1>How can I help you today?</h1>
+                <p>I'm an AI assistant. I can help with analysis, writing, math, coding, and more. Choose a personality style from the dropdown above!</p>
             </div>
         </div>
     </div>
@@ -562,6 +672,67 @@
             const chatForm = $('#chat-form');
             let isFirstMessage = true;
             let isScrolling = false;
+            let currentStyle = 'professional';
+            let conversationId = 'conv-' + Date.now();
+
+            // Define styles locally as fallback
+            const localStyles = {
+                "professional": { "name": "Professional" },
+                "casual": { "name": "Casual Friend" },
+                "concise": { "name": "Concise" },
+                "creative": { "name": "Creative Writer" },
+                "teacher": { "name": "Patient Teacher" },
+                "technical": { "name": "Technical Expert" },
+                "eli5": { "name": "ELI5" },
+                "debate": { "name": "Debate Partner" },
+                "enthusiastic": { "name": "Enthusiastic" },
+                "philosopher": { "name": "Philosopher" }
+            };
+
+            let availableStyles = localStyles;
+
+            // Load available styles on page load
+            loadStyles();
+
+            function loadStyles() {
+                $.ajax({
+                    url: '/api/styles',
+                    type: 'GET',
+                    success: function(styles) {
+                        console.log('Loaded styles from server:', styles);
+                        availableStyles = styles;
+                        populateStyleSelector(styles);
+                    },
+                    error: function(xhr, status, error) {
+                        console.warn('Failed to load styles from server, using local styles');
+                        console.error('Error:', error);
+                        populateStyleSelector(localStyles);
+                    }
+                });
+            }
+
+            function populateStyleSelector(styles) {
+                const styleSelector = $('#style-selector');
+                styleSelector.empty();
+                
+                for (const [id, data] of Object.entries(styles)) {
+                    styleSelector.append(`<option value="${id}">${data.name}</option>`);
+                }
+                
+                // Handle style change
+                styleSelector.off('change').on('change', function() {
+                    currentStyle = $(this).val();
+                    const styleName = styles[currentStyle].name;
+                    console.log('Style changed to:', currentStyle, styleName);
+                    showStyleNotification(`Switched to ${styleName} mode`);
+                });
+            }
+
+            function showStyleNotification(message) {
+                const toast = $(`<div class="style-toast">${message}</div>`);
+                $('body').append(toast);
+                setTimeout(() => toast.fadeOut(300, () => toast.remove()), 2000);
+            }
 
             // Prevent zoom on iOS double-tap
             let lastTouchEnd = 0;
@@ -662,18 +833,22 @@
 
                 scrollToBottom();
 
-                // Simulate API call
+                // API call with style parameter
                 $.ajax({
                     url: '/',
                     type: 'POST',
-                    data: { prompt: text },
+                    data: { 
+                        prompt: text,
+                        style: currentStyle,
+                        conversation_id: conversationId
+                    },
                     dataType: 'json',
                     success: function(res) {
-                        $('#' + assistantId + ' .message-content').html(formatResponse(res.response));
+                        $('#' + assistantId + ' .message-inner .message-content').html(formatResponse(res.response));
                         setTimeout(() => scrollToBottom(), 100);
                     },
                     error: function() {
-                        $('#' + assistantId + ' .message-content').html('I apologize, but I encountered an error. Please try again.');
+                        $('#' + assistantId + ' .message-inner .message-content').html('I apologize, but I encountered an error. Please try again.');
                         setTimeout(() => scrollToBottom(), 100);
                     }
                 });
@@ -690,7 +865,22 @@
             }
 
             function formatResponse(text) {
-                return escapeHtml(text);
+                // Convert markdown-style formatting to HTML
+                let formatted = escapeHtml(text);
+                
+                // Convert **bold** to <strong>
+                formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+                
+                // Convert *italic* to <em>
+                formatted = formatted.replace(/\*(.+?)\*/g, '<em>$1</em>');
+                
+                // Convert newlines to <br>
+                formatted = formatted.replace(/\n/g, '<br>');
+                
+                // Convert `code` to <code>
+                formatted = formatted.replace(/`(.+?)`/g, '<code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-family: monospace;">$1</code>');
+                
+                return formatted;
             }
 
             // Handle window resize
